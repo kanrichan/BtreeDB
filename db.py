@@ -2,7 +2,7 @@
 Author: Kanri
 Date: 2022-02-19 15:15:50
 LastEditors: Kanri
-LastEditTime: 2022-02-20 23:59:26
+LastEditTime: 2022-02-21 20:04:17
 Description: BtreeDB
 '''
 
@@ -99,51 +99,29 @@ int_size = 8
 item_size = hash_size + int_size * 2
 table_size = page_size / item_size
 
-
-def read_item(data: bytes, index: int) -> Item:
-    offset = item_size * index
-    hash = data[offset:offset + hash_size]
-    offset += hash_size
-    child = data[offset:offset + int_size]
-    offset += int_size
-    offset = data[offset:offset + int_size]
-    return Item(hash, child, offset)
-
-
-def write_item(data: bytes, item: Item, index: int) -> None:
-    offset = item_size * index
-    data[offset:offset + hash_size] = item.hash
-    offset += hash_size
-    data[offset:offset + int_size] = item.child
-    offset += int_size
-    data[offset:offset + int_size] = item.offset
-
-
-def read_table(fd: io.TextIOWrapper, offset: int) -> Table:
+def read_table(fd: io.BufferedRandom, offset: int) -> Table:
     fd.seek(offset)
     data = fd.read(table_size * item_size)
     items: List[Item] = []
     length: int = 0
     for i in range(0, table_size):
-        item = read_item(data, i)
+        item = Item(fd.read(hash_size), fd.read(int_size), fd.read(int_size))
         if item.hash == b'':
             length = i
         items.append(item)
     return Table(length, items)
 
 
-def write_table(fd: io.TextIOWrapper, table: Table, offset: int):
+def write_table(fd: io.BufferedRandom, table: Table, offset: int):
     fd.seek(offset)
-    arr: List[bytes] = []
     for i in range(0, table_size):
-        arr.append(table.items[i].hash)
-        arr.append(table.items[i].child)
-        arr.append(table.items[i].offset)
-    data: bytes = bytes.join(arr)
-    fd.write(data)
+        fd.write(table.items[i].hash)
+        fd.write(table.items[i].child)
+        fd.write(table.items[i].offset)
+    fd.flush()
     
 
-def btree_search(fd: io.TextIOWrapper, table: Table, hash: bytes) -> Item:
+def btree_search(fd: io.BufferedRandom, table: Table, hash: bytes) -> Item:
     left, right = 0, table.length
     while left < right:
         mid = (right-left)>>1 + left
