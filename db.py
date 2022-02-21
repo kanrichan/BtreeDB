@@ -2,7 +2,7 @@
 Author: Kanri
 Date: 2022-02-19 15:15:50
 LastEditors: Kanri
-LastEditTime: 2022-02-21 20:04:17
+LastEditTime: 2022-02-21 20:21:38
 Description: BtreeDB
 '''
 
@@ -101,7 +101,6 @@ table_size = page_size / item_size
 
 def read_table(fd: io.BufferedRandom, offset: int) -> Table:
     fd.seek(offset)
-    data = fd.read(table_size * item_size)
     items: List[Item] = []
     length: int = 0
     for i in range(0, table_size):
@@ -137,17 +136,17 @@ def btree_search(fd: io.BufferedRandom, table: Table, hash: bytes) -> Item:
     child_table = read_table(fd, child)
     return table_search(fd, child_table, hash)
 
-def table_search(table: Table, hash: bytes) -> Tuple(int, bool):
+def table_search(table: Table, hash: bytes) -> Tuple(Item, bool):
     left, right = 0, table.length
     while left < right:
         mid = (right-left)>>1 + left
         if table.items[mid] == hash:
-            return mid, True
+            return table.items[mid], True
         elif table.items[mid] > hash:
             right = mid
         else:
             left = mid + 1
-    return left, False
+    return table.items[left], False
 
 
 def table_insert(table: Table, item: Item) -> Item:
@@ -158,6 +157,7 @@ def table_insert(table: Table, item: Item) -> Item:
     if table.length < table_size:
         table.insert(index, item)
     
+
 
 
 class Btree:
